@@ -1,0 +1,44 @@
+id: git-safety
+name: Git Safety Steering
+description: Keep destructive or history-rewriting git operations deliberate
+
+rules:
+  - id: git-safety.force-push
+    title: Prefer force-with-lease over force
+    description: Plain --force can silently discard teammates' pushes
+    phase: before-tool
+    match:
+      type: bash-command
+      pattern: "(^|[;&|]\\s*)git\\s+push\\b(?![^;&|]*--force-with-lease)[^;&|]*(\\s--force\\b|\\s-f\\b)"
+    defaultAction:
+      type: suggest
+      replacement: 'git push --force-with-lease'
+      message: "`{matched}` can discard others' work. Use `{replacement}` — it fails if the remote moved."
+
+  - id: git-safety.commit-to-main
+    title: Confirm commits to protected branches
+    description: Committing directly to main/master is usually unintended in agent sessions
+    phase: before-tool
+    match:
+      type: predicate
+      predicateName: on-protected-branch
+    defaultAction:
+      type: confirm
+      message: "You're about to commit directly to a protected branch. Proceed?"
+      fallback:
+        type: block
+        message: "Blocked: commit to a protected branch requires confirmation, which this harness can't provide."
+
+  - id: git-safety.hard-reset
+    title: Confirm destructive resets
+    description: git reset --hard and git clean -f destroy uncommitted work
+    phase: before-tool
+    match:
+      type: bash-command
+      pattern: "(^|[;&|]\\s*)git\\s+(reset\\s+[^;&|]*--hard|clean\\s+[^;&|]*-[a-zA-Z]*f)"
+    defaultAction:
+      type: confirm
+      message: '`{matched}` destroys uncommitted work. Proceed?'
+      fallback:
+        type: block
+        message: 'Blocked: `{matched}` destroys uncommitted work and requires confirmation.'

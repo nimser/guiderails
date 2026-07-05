@@ -1,0 +1,40 @@
+id: modern-cli
+name: Modern CLI Steering
+description: Steer the agent to faster, context-friendlier tools
+
+rules:
+  - id: modern-cli.grep
+    title: Prefer ripgrep over grep
+    description: rg is faster and respects .gitignore; recursive grep wastes turns and context
+    phase: before-tool
+    match:
+      type: bash-command
+      pattern: "(^|[;&|]\\s*)grep\\s+(-[a-zA-Z]*r[a-zA-Z]*\\b|--recursive\\b)"
+    defaultAction:
+      type: suggest
+      replacement: 'rg <pattern>'
+      message: '`{matched}` — use `rg` instead: faster and respects .gitignore.'
+
+  - id: modern-cli.find
+    title: Prefer fd over find -name
+    description: fd is faster, respects .gitignore, and has saner syntax
+    phase: before-tool
+    match:
+      type: bash-command
+      pattern: "(^|[;&|]\\s*)find\\s+\\S+\\s+.*-name\\b"
+    defaultAction:
+      type: suggest
+      replacement: 'fd <pattern>'
+      message: '`{matched}` — use `fd` instead: faster and respects .gitignore.'
+
+  - id: modern-cli.cat-large-file
+    title: Bounded read for large files
+    description: cat on a large file floods the context window; read the head first
+    phase: before-tool
+    match:
+      type: predicate
+      predicateName: cat-large-file
+    defaultAction:
+      type: suggest
+      replacement: 'head -n 100 <file>'
+      message: '`{matched}` targets a large file that would flood the context window. Start with: `{replacement}`'

@@ -1,0 +1,16 @@
+id: package-manager
+name: Package Manager Steering
+description: Catch package-manager mismatches before they corrupt lockfiles
+
+rules:
+  - id: package-manager.npm-in-pnpm
+    title: npm install in a pnpm repository
+    description: Detects npm install/i/add where pnpm-lock.yaml is present
+    phase: before-tool
+    match:
+      type: predicate
+      predicateName: npm-in-pnpm-repo
+    defaultAction:
+      type: suggest
+      replacement: 'pnpm add <package>'
+      message: 'This repo uses pnpm (pnpm-lock.yaml present). `{matched}` would create a conflicting lockfile — use `{replacement}`.'
