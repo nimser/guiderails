@@ -11,6 +11,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Fixed
 
 - `yaml` is a runtime dependency — the YAML pack loader imports it at run time, so installing the package no longer relies on the consumer hoisting it
+- `build` removes `dist/` before compiling, so the published tarball carries only files that have a source counterpart
 
 ## [0.1.0] - 2026-07-06
 

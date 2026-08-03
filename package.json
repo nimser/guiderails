@@ -35,7 +35,7 @@
     }
   },
   "scripts": {
-    "build": "tsc -p tsconfig.build.json && sh -c 'cp src/packs/*.yaml dist/packs/'",
+    "build": "rm -rf dist && tsc -p tsconfig.build.json && sh -c 'cp src/packs/*.yaml dist/packs/'",
     "prepack": "npm run build",
     "test": "vitest run",
     "test:watch": "vitest",
