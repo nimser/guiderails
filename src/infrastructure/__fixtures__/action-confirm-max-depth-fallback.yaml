@@ -1,0 +1,26 @@
+id: max-depth-fallback-pack
+name: Max Depth Fallback Pack
+description: Confirm fallback chain exactly at the depth limit
+rules:
+  - id: test.max-depth-fallback
+    title: Max Depth Fallback
+    description: A confirm chain that terminates on the last allowed link
+    phase: before-tool
+    match:
+      type: bash-command
+      pattern: 'max-depth'
+    defaultAction:
+      type: confirm
+      message: 'Level 1?'
+      fallback:
+        type: confirm
+        message: 'Level 2?'
+        fallback:
+          type: confirm
+          message: 'Level 3?'
+          fallback:
+            type: confirm
+            message: 'Level 4?'
+            fallback:
+              type: block
+              message: 'Cancelled'

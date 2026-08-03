@@ -1,3 +1,4 @@
+import { MAX_FALLBACK_DEPTH } from '../core/fallback-depth.js'
 import type { GuardrailAction, HarnessCapabilities } from '../core/types.js'
 
 /**
@@ -37,7 +38,8 @@ function interpolateMessage(message: string | undefined, ctx: ResolveContext): s
 export function resolveAction(
   action: GuardrailAction,
   capabilities: HarnessCapabilities,
-  ctx: ResolveContext
+  ctx: ResolveContext,
+  fallbackDepth = 0
 ): GuardrailAction {
   switch (action.type) {
     case 'allow':
@@ -51,7 +53,7 @@ export function resolveAction(
     case 'redact':
       return resolveRedact(action, capabilities, ctx)
     case 'confirm':
-      return resolveConfirm(action, capabilities, ctx)
+      return resolveConfirm(action, capabilities, ctx, fallbackDepth)
   }
 }
 
@@ -138,7 +140,8 @@ function resolveRedact(
 function resolveConfirm(
   action: Extract<GuardrailAction, { type: 'confirm' }>,
   capabilities: HarnessCapabilities,
-  ctx: ResolveContext
+  ctx: ResolveContext,
+  fallbackDepth: number
 ): GuardrailAction {
   if (capabilities.confirm) {
     return {
@@ -148,7 +151,14 @@ function resolveConfirm(
     }
   }
   if (action.fallback) {
-    return resolveAction(action.fallback, capabilities, ctx)
+    if (fallbackDepth >= MAX_FALLBACK_DEPTH) {
+      return fallbackBlock(
+        `\`confirm\` fallback chain exceeds the maximum depth of ${MAX_FALLBACK_DEPTH}. Falling back to a \`block\`.`,
+        action.message,
+        ctx
+      )
+    }
+    return resolveAction(action.fallback, capabilities, ctx, fallbackDepth + 1)
   }
   // ADR-002: confirm falls back straight to block, never to suggest — a rule
   // that asked for a human decision must not degrade into handing the agent

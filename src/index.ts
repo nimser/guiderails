@@ -96,6 +96,10 @@ export {
   /** Return descriptive validation errors for a potential RulePack. */
   getRulePackErrors,
 } from './core/validator.js'
+export {
+  /** @internal Maximum number of nested `fallback` links a rule action may declare. */
+  MAX_FALLBACK_DEPTH,
+} from './core/fallback-depth.js'
 
 // ── Engine internals ────────────────────────────────────
 export type { Stats } from './engine/stats-tracker.js'

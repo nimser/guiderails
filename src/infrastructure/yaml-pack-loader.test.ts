@@ -236,6 +236,26 @@ describe('loadYamlRulePack', () => {
     )
   })
 
+  it('loads a confirm fallback chain at the maximum depth', () => {
+    const pack = loadYamlRulePack(
+      fixture('action-confirm-max-depth-fallback.yaml'),
+      predicateRegistry
+    )
+    expect(pack.rules[0].defaultAction.type).toBe('confirm')
+  })
+
+  it('throws when a confirm fallback chain is nested past the maximum depth', () => {
+    expect(() =>
+      loadYamlRulePack(fixture('action-confirm-deep-fallback.yaml'), predicateRegistry)
+    ).toThrow(/fallback chain exceeds the maximum depth of 5/i)
+  })
+
+  it('throws instead of overflowing on a self-referencing fallback alias', () => {
+    expect(() =>
+      loadYamlRulePack(fixture('action-confirm-cyclic-fallback.yaml'), predicateRegistry)
+    ).toThrow(/fallback chain exceeds the maximum depth of 5/i)
+  })
+
   it('throws when redact is used as confirm fallback', () => {
     expect(() => loadYamlRulePack(fixture('redact-fallback.yaml'), predicateRegistry)).toThrow(
       /redact action is not allowed in before-tool context/

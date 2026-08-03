@@ -1,0 +1,32 @@
+id: deep-fallback-pack
+name: Deep Fallback Pack
+description: Confirm fallback chain nested past the depth limit
+rules:
+  - id: test.deep-fallback
+    title: Deep Fallback
+    description: A confirm chain that never reaches a terminal action
+    phase: before-tool
+    match:
+      type: bash-command
+      pattern: 'deep'
+    defaultAction:
+      type: confirm
+      message: 'Level 1?'
+      fallback:
+        type: confirm
+        message: 'Level 2?'
+        fallback:
+          type: confirm
+          message: 'Level 3?'
+          fallback:
+            type: confirm
+            message: 'Level 4?'
+            fallback:
+              type: confirm
+              message: 'Level 5?'
+              fallback:
+                type: confirm
+                message: 'Level 6?'
+                fallback:
+                  type: block
+                  message: 'Cancelled'

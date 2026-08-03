@@ -192,6 +192,19 @@ describe('resolveAction', () => {
       expect(result.type).toBe('block')
     })
 
+    it('stops walking a self-referencing fallback chain and blocks', () => {
+      const cyclic = { type: 'confirm', message: 'Confirm: {matched}' } as Extract<
+        GuardrailAction,
+        { type: 'confirm' }
+      >
+      ;(cyclic as { fallback?: GuardrailAction }).fallback = cyclic
+      const result = resolveAction(cyclic, limitedCapabilities, { matched: 'test' })
+      expect(result.type).toBe('block')
+      if (result.type === 'block') {
+        expect(result.fallbackReason).toContain('maximum depth')
+      }
+    })
+
     it('falls back to block when confirm capability unavailable, no fallback, and no suggest', () => {
       const action: GuardrailAction = {
         type: 'confirm',

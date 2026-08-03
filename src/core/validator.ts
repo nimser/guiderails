@@ -1,3 +1,4 @@
+import { MAX_FALLBACK_DEPTH } from './fallback-depth.js'
 import type {
   AfterToolAction,
   BeforeToolAction,
@@ -27,7 +28,7 @@ function isMatchCondition(v: unknown): v is MatchCondition {
   }
 }
 
-function isBeforeToolAction(v: unknown): v is BeforeToolAction {
+function isBeforeToolAction(v: unknown, fallbackDepth = 0): v is BeforeToolAction {
   if (!isObject(v)) return false
 
   switch (v.type) {
@@ -48,8 +49,9 @@ function isBeforeToolAction(v: unknown): v is BeforeToolAction {
       )
     case 'confirm': {
       if (typeof v.message !== 'string' || v.message.length === 0) return false
-      if (v.fallback !== undefined && !isBeforeToolAction(v.fallback)) return false
-      return true
+      if (v.fallback === undefined) return true
+      if (fallbackDepth >= MAX_FALLBACK_DEPTH) return false
+      return isBeforeToolAction(v.fallback, fallbackDepth + 1)
     }
     default:
       return false
