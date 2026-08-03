@@ -107,7 +107,9 @@ export function loadAllRulePacks(
 
   let entries: string[]
   try {
-    entries = readdirSync(packDir)
+    // Sorted: first match wins across packs, so precedence must not ride on
+    // filesystem directory order.
+    entries = readdirSync(packDir).sort()
   } catch (err) {
     throw new Error(`Failed to read rule pack directory ${packDir}: ${(err as Error).message}`)
   }
