@@ -9,7 +9,11 @@ import type {
 import type { PredicateRegistry } from '../core/predicate-registry.js'
 import type { StatsTracker } from './stats-tracker.js'
 import { extractTargets, isMissingRequiredFields, isKnownTool } from '../core/normalizer.js'
-import { matchesMatcher } from '../matcher/matchers.js'
+import {
+  exceedsMatchInputLimit,
+  matchesMatcher,
+  MAX_MATCH_INPUT_LENGTH,
+} from '../matcher/matchers.js'
 import { splitCommands } from '../matcher/command-splitter.js'
 import { resolveAction } from '../resolver/action-resolver.js'
 
@@ -48,6 +52,10 @@ export function processMatch(
     return handleMissingTargetsTraced(ctx, stats)
   }
 
+  if (exceedsMatchInputLimit(command) || exceedsMatchInputLimit(filePath)) {
+    return handleOversizedInputTraced(ctx, stats)
+  }
+
   // user-input contexts carry prompt text, which is never command-split (ADR-010)
   const commands =
     ctx.toolName === 'user-input' ? [command ?? ''] : command ? splitCommands(command) : ['']
@@ -66,6 +74,19 @@ function handleMissingTargetsTraced(ctx: ToolCallContext, stats: StatsTracker): 
     type: 'block',
     message: msg,
   }
+  const event: DomainEvent = {
+    type: 'fallback-triggered',
+    from: 'allow',
+    to: 'block',
+    reason: msg,
+  }
+  stats.record(action)
+  return { action, events: [event] }
+}
+
+function handleOversizedInputTraced(ctx: ToolCallContext, stats: StatsTracker): MatchResult {
+  const msg = `Blocked oversized ${ctx.toolName} tool call: input exceeds the ${MAX_MATCH_INPUT_LENGTH}-character matching limit, so no rule can be evaluated against it.`
+  const action: GuardrailAction = { type: 'block', message: msg }
   const event: DomainEvent = {
     type: 'fallback-triggered',
     from: 'allow',

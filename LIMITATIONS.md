@@ -19,7 +19,7 @@ An unmatched event **allows** by default — a coding agent that halts on every 
 
 `--strict` trades ergonomics for posture: anything secret-shaped that slips past a named rule hits a `confirm` gate instead of silently passing, and the `hardening` pack is locked on. Expect more interruptions; that's the trade.
 
-Two failure cases are unconditionally fail-**closed** and not configurable: an engine crash/timeout resolves to `block` on every adapter, and oversized input is rejected at the matcher's input-length cap rather than skipped.
+Two failure cases are unconditionally fail-**closed** and not configurable: an engine crash/timeout resolves to `block` on every adapter, and input past the matcher's length cap is blocked by the engine before any rule runs, so no rule pack or rule ordering can turn it into an allow.
 
 ## Pattern matching has a ceiling
 

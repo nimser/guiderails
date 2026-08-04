@@ -2,6 +2,7 @@ import { describe, expect, it, beforeEach } from 'vitest'
 import { matchAndResolve, processMatch } from './engine.js'
 import { StatsTracker } from './stats-tracker.js'
 import { PredicateRegistry } from '../core/predicate-registry.js'
+import { MAX_MATCH_INPUT_LENGTH } from '../matcher/matchers.js'
 import type { ToolCallContext, RulePack, HarnessCapabilities } from '../core/types.js'
 
 const fullCapabilities: HarnessCapabilities = {
@@ -257,6 +258,111 @@ describe('matchAndResolve', () => {
     }
     const result = matchAndResolve(ctx, packs, noRun, registry, stats)
     expect(result?.type).toBe('suggest')
+  })
+})
+
+describe('matchAndResolve — oversized input', () => {
+  let registry: PredicateRegistry
+  let stats: StatsTracker
+
+  beforeEach(() => {
+    ;({ registry, stats } = makeDeps())
+  })
+
+  function packWithLeadingAllowRule(): RulePack[] {
+    return [
+      {
+        id: 'test-pack',
+        name: 'Test Pack',
+        description: 'Test',
+        rules: [
+          {
+            id: 'allow-everything',
+            title: 'Allow Everything',
+            description: 'Ordered before any block rule',
+            phase: 'before-tool',
+            match: { type: 'bash-command', pattern: /.*/ },
+            defaultAction: { type: 'allow' },
+          },
+          {
+            id: 'allow-every-path',
+            title: 'Allow Every Path',
+            description: 'Ordered before any block rule',
+            phase: 'before-tool',
+            match: { type: 'file-path', pattern: /.*/ },
+            defaultAction: { type: 'allow' },
+          },
+        ],
+      },
+    ]
+  }
+
+  it('blocks an oversized command even when an allow rule is ordered first', () => {
+    const ctx: ToolCallContext = {
+      toolName: 'bash',
+      command: 'a'.repeat(MAX_MATCH_INPUT_LENGTH + 1),
+    }
+    const result = matchAndResolve(
+      ctx,
+      packWithLeadingAllowRule(),
+      fullCapabilities,
+      registry,
+      stats
+    )
+    expect(result?.type).toBe('block')
+  })
+
+  it('blocks an oversized file path even when an allow rule is ordered first', () => {
+    const ctx: ToolCallContext = {
+      toolName: 'read',
+      filePath: '/' + 'a'.repeat(MAX_MATCH_INPUT_LENGTH),
+    }
+    const result = matchAndResolve(
+      ctx,
+      packWithLeadingAllowRule(),
+      fullCapabilities,
+      registry,
+      stats
+    )
+    expect(result?.type).toBe('block')
+  })
+
+  it('blocks an oversized command with no rule packs loaded at all', () => {
+    const ctx: ToolCallContext = {
+      toolName: 'bash',
+      command: 'a'.repeat(MAX_MATCH_INPUT_LENGTH + 1),
+    }
+    const result = matchAndResolve(ctx, [], fullCapabilities, registry, stats)
+    expect(result?.type).toBe('block')
+  })
+
+  it('emits a fallback-triggered event for oversized input', () => {
+    const ctx: ToolCallContext = {
+      toolName: 'bash',
+      command: 'a'.repeat(MAX_MATCH_INPUT_LENGTH + 1),
+    }
+    const result = processMatch(ctx, [], fullCapabilities, registry, stats)
+    expect(result.events).toHaveLength(1)
+    expect(result.events[0]).toMatchObject({
+      type: 'fallback-triggered',
+      from: 'allow',
+      to: 'block',
+    })
+  })
+
+  it('evaluates rules normally at exactly MAX_MATCH_INPUT_LENGTH', () => {
+    const ctx: ToolCallContext = {
+      toolName: 'bash',
+      command: 'a'.repeat(MAX_MATCH_INPUT_LENGTH),
+    }
+    const result = matchAndResolve(
+      ctx,
+      packWithLeadingAllowRule(),
+      fullCapabilities,
+      registry,
+      stats
+    )
+    expect(result?.type).toBe('allow')
   })
 })
 

@@ -1,6 +1,16 @@
 import { describe, it, expect } from 'vitest'
 import { validateRule, validateRulePack, getRuleErrors, getRulePackErrors } from './validator.js'
+import { MAX_FALLBACK_DEPTH } from './fallback-depth.js'
 import type { GuardrailRule, RulePack } from './types.js'
+
+/** Builds a confirm action whose fallback chain holds `links` nested actions. */
+function nestedConfirm(links: number): Record<string, unknown> {
+  let action: Record<string, unknown> = { type: 'block', message: 'cancelled' }
+  for (let i = 0; i < links; i++) {
+    action = { type: 'confirm', message: `level ${links - i}?`, fallback: action }
+  }
+  return action
+}
 
 function validRule(overrides: Partial<GuardrailRule> = {}): GuardrailRule {
   return {
@@ -137,6 +147,29 @@ describe('validateRule', () => {
       },
     }
     expect(validateRule(rule)).toBe(true)
+  })
+
+  it('validates a confirm fallback chain at the maximum depth', () => {
+    const rule = {
+      ...validRule(),
+      defaultAction: nestedConfirm(MAX_FALLBACK_DEPTH),
+    }
+    expect(validateRule(rule)).toBe(true)
+  })
+
+  it('fails when a confirm fallback chain is nested past the maximum depth', () => {
+    const rule = {
+      ...validRule(),
+      defaultAction: nestedConfirm(MAX_FALLBACK_DEPTH + 1),
+    }
+    expect(validateRule(rule)).toBe(false)
+  })
+
+  it('fails instead of overflowing on a self-referencing fallback', () => {
+    const cyclic: Record<string, unknown> = { type: 'confirm', message: 'ok?' }
+    cyclic.fallback = cyclic
+    const rule = { ...validRule(), defaultAction: cyclic }
+    expect(validateRule(rule)).toBe(false)
   })
 
   it('fails when predicate matcher has empty predicateName', () => {

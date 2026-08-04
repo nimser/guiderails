@@ -134,7 +134,7 @@ flowchart TD
 When a harness lacks a capability, the engine walks a deterministic chain:
 
 - `run → suggest → block`
-- `confirm → block` (or via `action.fallback` if defined — see [ADR-002](adrs/002-behavior-model.md))
+- `confirm → block` (or via `action.fallback` if defined, up to 5 nested links — see [ADR-002](adrs/002-behavior-model.md))
 - `redact → block`
 - `suggest → block` (when no replacement available)
 

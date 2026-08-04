@@ -1,0 +1,15 @@
+id: cyclic-fallback-pack
+name: Cyclic Fallback Pack
+description: Confirm action whose fallback is a YAML alias back to itself
+rules:
+  - id: test.cyclic-fallback
+    title: Cyclic Fallback
+    description: A fallback chain that loops forever
+    phase: before-tool
+    match:
+      type: bash-command
+      pattern: 'cyclic'
+    defaultAction: &loop
+      type: confirm
+      message: 'Confirm?'
+      fallback: *loop

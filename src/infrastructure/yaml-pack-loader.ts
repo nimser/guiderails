@@ -1,6 +1,7 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { parse as parseYaml } from 'yaml'
 import { join } from 'node:path'
+import { MAX_FALLBACK_DEPTH } from '../core/fallback-depth.js'
 import { PredicateRegistry } from '../core/predicate-registry.js'
 import { validateRulePack, getRulePackErrors } from '../core/validator.js'
 import type { MatchCondition, GuardrailAction, BeforeToolAction, RulePack } from '../core/types.js'
@@ -176,7 +177,7 @@ function parseMatcher(
   }
 }
 
-function parseAction(raw: RawAction): GuardrailAction {
+function parseAction(raw: RawAction, fallbackDepth = 0): GuardrailAction {
   if (!raw.type) {
     throw new Error('Action missing "type" field')
   }
@@ -209,7 +210,7 @@ function parseAction(raw: RawAction): GuardrailAction {
       return {
         type: 'confirm',
         message: raw.message as string,
-        fallback: raw.fallback ? parseBeforeToolAction(raw.fallback) : undefined,
+        fallback: raw.fallback ? parseBeforeToolAction(raw.fallback, fallbackDepth + 1) : undefined,
       }
     default:
       throw new Error(`Unknown action type "${raw.type}"`)
@@ -225,8 +226,11 @@ function requireString(raw: RawAction, field: 'message' | 'replacement', actionT
   }
 }
 
-function parseBeforeToolAction(raw: RawAction): BeforeToolAction {
-  const action = parseAction(raw)
+function parseBeforeToolAction(raw: RawAction, fallbackDepth: number): BeforeToolAction {
+  if (fallbackDepth > MAX_FALLBACK_DEPTH) {
+    throw new RangeError(`Fallback chain exceeds the maximum depth of ${MAX_FALLBACK_DEPTH}`)
+  }
+  const action = parseAction(raw, fallbackDepth)
   if (action.type === 'redact') {
     throw new Error('redact action is not allowed in before-tool context')
   }

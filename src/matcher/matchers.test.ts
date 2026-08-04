@@ -34,13 +34,13 @@ describe('matchesMatcher — bash-command', () => {
     expect(matchesMatcher(matcher, ctx, predicateRegistry)).toBe(false)
   })
 
-  it('returns true (blocks) when command exceeds MAX_MATCH_INPUT_LENGTH', () => {
-    const matcher = { type: 'bash-command' as const, pattern: /test/ }
+  it('returns false when command exceeds MAX_MATCH_INPUT_LENGTH (the engine blocks it)', () => {
+    const matcher = { type: 'bash-command' as const, pattern: /a/ }
     const ctx: ToolCallContext = {
       toolName: 'bash',
       command: 'a'.repeat(MAX_MATCH_INPUT_LENGTH + 1),
     }
-    expect(matchesMatcher(matcher, ctx, predicateRegistry)).toBe(true)
+    expect(matchesMatcher(matcher, ctx, predicateRegistry)).toBe(false)
   })
 
   it('still matches when command equals MAX_MATCH_INPUT_LENGTH', () => {
@@ -110,13 +110,13 @@ describe('matchesMatcher — file-path', () => {
     expect(matchesMatcher(matcher, ctx, predicateRegistry)).toBe(true)
   })
 
-  it('returns true (blocks) when filePath exceeds MAX_MATCH_INPUT_LENGTH', () => {
-    const matcher = { type: 'file-path' as const, pattern: /test/ }
+  it('returns false when filePath exceeds MAX_MATCH_INPUT_LENGTH (the engine blocks it)', () => {
+    const matcher = { type: 'file-path' as const, pattern: /a/ }
     const ctx: ToolCallContext = {
       toolName: 'read',
       filePath: '/' + 'a'.repeat(MAX_MATCH_INPUT_LENGTH),
     }
-    expect(matchesMatcher(matcher, ctx, predicateRegistry)).toBe(true)
+    expect(matchesMatcher(matcher, ctx, predicateRegistry)).toBe(false)
   })
 
   it('still matches when filePath equals MAX_MATCH_INPUT_LENGTH', () => {

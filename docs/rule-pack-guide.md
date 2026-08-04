@@ -112,6 +112,8 @@ defaultAction:
     message: "Blocked: `{matched}` — confirmation required."
 ```
 
+A `fallback` may itself be a `confirm` with its own `fallback`, up to 5 nested links. Deeper chains — including a YAML anchor that aliases a fallback back to its own action — are rejected at load time.
+
 ## Steering Rules (Quality of Life)
 
 The same format covers non-security steering — rules that keep the agent on the fast path. These fire every session:
