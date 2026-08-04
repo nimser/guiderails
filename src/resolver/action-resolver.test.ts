@@ -1,7 +1,17 @@
 import { describe, expect, it } from 'vitest'
 import { resolveAction } from './action-resolver.js'
 import type { ResolveContext } from './action-resolver.js'
-import type { GuardrailAction, HarnessCapabilities } from '../core/types.js'
+import { MAX_FALLBACK_DEPTH } from '../core/fallback-depth.js'
+import type { BeforeToolAction, GuardrailAction, HarnessCapabilities } from '../core/types.js'
+
+/** Builds a confirm action whose fallback chain holds `links` nested actions. */
+function nestedConfirmChain(links: number): BeforeToolAction {
+  let action: BeforeToolAction = { type: 'block', message: 'terminal fallback' }
+  for (let i = 0; i < links; i++) {
+    action = { type: 'confirm', message: `Level ${links - i}?`, fallback: action }
+  }
+  return action
+}
 
 describe('resolveAction', () => {
   const fullCapabilities: HarnessCapabilities = {
@@ -190,6 +200,25 @@ describe('resolveAction', () => {
         replacement: 'safe-cmd',
       })
       expect(result.type).toBe('block')
+    })
+
+    it('reaches the terminal fallback of a chain at the maximum depth', () => {
+      const result = resolveAction(nestedConfirmChain(MAX_FALLBACK_DEPTH), limitedCapabilities, {
+        matched: 'test',
+      })
+      expect(result).toEqual({ type: 'block', message: 'terminal fallback' })
+    })
+
+    it('blocks a fallback chain nested past the maximum depth', () => {
+      const result = resolveAction(
+        nestedConfirmChain(MAX_FALLBACK_DEPTH + 1),
+        limitedCapabilities,
+        { matched: 'test' }
+      )
+      expect(result.type).toBe('block')
+      if (result.type === 'block') {
+        expect(result.fallbackReason).toContain('maximum depth')
+      }
     })
 
     it('stops walking a self-referencing fallback chain and blocks', () => {
