@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-08-04
+
 ### Fixed
 
 - Input longer than `MAX_MATCH_INPUT_LENGTH` is blocked by the engine before any rule is evaluated, so an `allow` rule ordered ahead of a `block` rule can no longer turn oversized input into an allow
@@ -23,6 +25,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - Initial release — core policy engine, matcher registry, YAML rule packs (env, sops, private-key, secret-managers, encryption-tools, hardening), Pi adapter
 
-[Unreleased]: https://github.com/nimser/guiderails/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/nimser/guiderails/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/nimser/guiderails/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/nimser/guiderails/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/nimser/guiderails/releases/tag/v0.1.0
