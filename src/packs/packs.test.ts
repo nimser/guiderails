@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
+import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { PredicateRegistry } from '../core/predicate-registry.js'
 import { loadBuiltInRulePacks } from './index.js'
+import { npmInPnpmRepo, onProtectedBranch, catLargeFile } from './predicates.js'
 import { createEngine, PI_CAPABILITIES } from '../index.js'
 import type { ToolCallContext } from '../core/types.js'
 
@@ -13,13 +17,16 @@ function makeEngine() {
 const bash = (command: string): ToolCallContext => ({ toolName: 'bash', command })
 
 describe('built-in packs', () => {
-  it('loads all six packs without validation errors', () => {
+  it('loads all nine packs without validation errors', () => {
     const { packs } = makeEngine()
     const ids = packs.map((p) => p.id).sort()
     expect(ids).toEqual([
       'encryption-tools',
       'env',
+      'git-safety',
       'hardening',
+      'modern-cli',
+      'package-manager',
       'private-key',
       'secret-managers',
       'sops',
@@ -114,5 +121,86 @@ describe('built-in packs', () => {
     for (const pack of packs) {
       expect(pack.nonOverridable ?? false).toBe(pack.id === 'hardening')
     }
+  })
+
+  it('steers recursive grep to rg but leaves plain grep alone', () => {
+    const { engine } = makeEngine()
+    expect(engine.evaluate(bash('grep -r TODO src/'))?.type).toBe('suggest')
+    expect(engine.evaluate(bash('grep TODO file.txt'))).toBeNull()
+    expect(engine.evaluate(bash('rg TODO src/'))).toBeNull()
+  })
+
+  it('steers find -name to fd but leaves fd alone', () => {
+    const { engine } = makeEngine()
+    expect(engine.evaluate(bash('find . -name "*.ts"'))?.type).toBe('suggest')
+    expect(engine.evaluate(bash('fd ".ts$"'))).toBeNull()
+  })
+
+  it('suggests force-with-lease for plain force push, not for force-with-lease', () => {
+    const { engine } = makeEngine()
+    expect(engine.evaluate(bash('git push --force origin main'))?.type).toBe('suggest')
+    expect(engine.evaluate(bash('git push --force-with-lease origin main'))).toBeNull()
+  })
+
+  it('confirms destructive resets', () => {
+    const { engine } = makeEngine()
+    expect(engine.evaluate(bash('git reset --hard HEAD~3'))?.type).toBe('confirm')
+    expect(engine.evaluate(bash('git clean -fd'))?.type).toBe('confirm')
+  })
+
+  it('redacts secret-shaped tokens pasted into prompts', () => {
+    const { engine } = makeEngine()
+    const action = engine.evaluate({
+      toolName: 'user-input',
+      command: 'why does auth fail with key sk-abcdefghijklmnopqrstuvwxyz123456?',
+    })
+    expect(action?.type).toBe('redact')
+  })
+
+  it('falls back to block for pasted secrets when the harness cannot rewrite prompts', () => {
+    const registry = new PredicateRegistry()
+    const packs = loadBuiltInRulePacks(registry)
+    const engine = createEngine(packs, { ...PI_CAPABILITIES, redactUserInput: false }, { registry })
+    const action = engine.evaluate({
+      toolName: 'user-input',
+      command: 'token ghp_abcdefghijklmnopqrstuvwxyz0123456789',
+    })
+    expect(action?.type).toBe('block')
+  })
+
+  it('leaves ordinary prompts alone', () => {
+    const { engine } = makeEngine()
+    expect(
+      engine.evaluate({ toolName: 'user-input', command: 'refactor the parser module' })
+    ).toBeNull()
+  })
+})
+
+describe('built-in predicates', () => {
+  it('npm-in-pnpm-repo fires only with a pnpm lockfile present', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'gr-pnpm-'))
+    expect(npmInPnpmRepo(bash('npm install lodash'), dir)).toBe(false)
+    writeFileSync(join(dir, 'pnpm-lock.yaml'), 'lockfileVersion: 9\n')
+    expect(npmInPnpmRepo(bash('npm install lodash'), dir)).toBe(true)
+    expect(npmInPnpmRepo(bash('pnpm add lodash'), dir)).toBe(false)
+  })
+
+  it('on-protected-branch fires for git commit on main only', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'gr-git-'))
+    mkdirSync(join(dir, '.git'))
+    writeFileSync(join(dir, '.git', 'HEAD'), 'ref: refs/heads/main\n')
+    expect(onProtectedBranch(bash('git commit -m "x"'), dir)).toBe(true)
+    writeFileSync(join(dir, '.git', 'HEAD'), 'ref: refs/heads/feature/x\n')
+    expect(onProtectedBranch(bash('git commit -m "x"'), dir)).toBe(false)
+    expect(onProtectedBranch(bash('git status'), dir)).toBe(false)
+  })
+
+  it('cat-large-file fires only above the size threshold', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'gr-cat-'))
+    writeFileSync(join(dir, 'small.txt'), 'hello')
+    writeFileSync(join(dir, 'big.txt'), 'x'.repeat(300_000))
+    expect(catLargeFile(bash('cat small.txt'), dir)).toBe(false)
+    expect(catLargeFile(bash('cat big.txt'), dir)).toBe(true)
+    expect(catLargeFile(bash('cat missing.txt'), dir)).toBe(false)
   })
 })
